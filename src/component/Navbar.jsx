@@ -1,72 +1,86 @@
-import React, { useState } from 'react';
-import { Navbar, Nav, NavDropdown, Container, Button } from 'react-bootstrap';
-import { ethers } from 'ethers';
+import React, { useState, useEffect } from "react";
+import {
+  Navbar as BootstrapNavbar,
+  Nav,
+  Container,
+  Button,
+} from "react-bootstrap";
+import { ethers } from "ethers";
 
-function WalletConnector() {
+function Navbar() {
   const [walletAddress, setWalletAddress] = useState("");
   const [isConnected, setIsConnected] = useState(false);
 
-  // Function to connect to MetaMask
   const connectWallet = async () => {
-      if (typeof window.ethereum !== "undefined") {
-          try {
-              // Request account access
-              const provider = new ethers.BrowserProvider(window.ethereum);
+    if (typeof window.ethereum !== "undefined") {
+      try {
+        const provider = new ethers.BrowserProvider(window.ethereum);
         await provider.send("eth_requestAccounts", []);
 
-              // Initialize provider and signer
-              const signer = provider.getSigner();
+        const signer = provider.getSigner();
+        const address = await signer.getAddress();
 
-              // Get the user's wallet address
-              const address = await signer.getAddress();
-              
-              // Update the state
-              setWalletAddress(address);
-              setIsConnected(true);
+        setWalletAddress(address);
+        setIsConnected(true);
 
-              console.log("Connected to address:", address);
-          } catch (error) {
-              console.error("Error connecting to MetaMask:", error);
-          }
-      } else {
-          alert("Please install MetaMask to connect your wallet.");
+        // Save connection state to localStorage
+        localStorage.setItem("walletAddress", address);
+        localStorage.setItem("isConnected", "true");
+
+        console.log("Connected to address:", address);
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
       }
+    } else {
+      alert("Please install MetaMask to connect your wallet.");
+    }
   };
 
+  // Load connection state from localStorage on component mount
+  useEffect(() => {
+    const savedAddress = localStorage.getItem("walletAddress");
+    const savedIsConnected = localStorage.getItem("isConnected") === "true";
+
+    if (savedAddress && savedIsConnected) {
+      setWalletAddress(savedAddress);
+      setIsConnected(true);
+    }
+
+    // Listen for account changes and update state
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", (accounts) => {
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          setIsConnected(true);
+          localStorage.setItem("walletAddress", accounts[0]);
+          localStorage.setItem("isConnected", "true");
+        } else {
+          setWalletAddress("");
+          setIsConnected(false);
+          localStorage.removeItem("walletAddress");
+          localStorage.setItem("isConnected", "false");
+        }
+      });
+    }
+  }, []);
+
   return (
-    <Navbar bg="light" expand="lg" style={{ background: 'linear-gradient(to left, rgba(102, 126, 234, 0.5), rgba(118, 75, 162, 0.5))' }}>
+    <BootstrapNavbar bg="light" expand="lg">
       <Container>
-        <Navbar.Brand href="/">TAPIR</Navbar.Brand>
-        <Navbar.Toggle aria-controls="basic-navbar-nav" />
-        <Navbar.Collapse id="basic-navbar-nav">
-          <Nav className="me-auto">
-            <Nav.Link href="#home">Home</Nav.Link>
-            <Nav.Link href="#link">Link</Nav.Link>
-            <NavDropdown title="Dropdown" id="basic-nav-dropdown">
-              <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
-              <NavDropdown.Item href="#action/3.2">Another action</NavDropdown.Item>
-              <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
-              <NavDropdown.Divider />
-              <NavDropdown.Item href="#action/3.4">Separated link</NavDropdown.Item>
-            </NavDropdown>
-          </Nav>
-          <Nav>
-              <Button
-                className="pe-3 ps-3 mt-2 mb-2"
-                variant="primary"
-                style={{ borderRadius: 15 }}
-                onClick={connectWallet}
-              >
-                {isConnected ? "Connected" : "Connect Wallet"}
-              </Button>
-              {isConnected && (
-                <p>Connected wallet address: {walletAddress}</p>
-            )}
-          </Nav>
-        </Navbar.Collapse>
+        <BootstrapNavbar.Brand href="/">Tapir Frontend</BootstrapNavbar.Brand>
+        <Nav className="ml-auto">
+          <Button onClick={connectWallet}>
+            {isConnected
+              ? `Connected: ${walletAddress.slice(
+                  0,
+                  6
+                )}...${walletAddress.slice(-4)}`
+              : "Connect Wallet"}
+          </Button>
+        </Nav>
       </Container>
-    </Navbar>
+    </BootstrapNavbar>
   );
 }
 
-export default WalletConnector;
+export default Navbar;
